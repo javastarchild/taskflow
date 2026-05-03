@@ -6,12 +6,13 @@ const matter = require('gray-matter');
 const crypto = require('crypto');
 
 const app = express();
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 
-app.use(cors({ origin: 'http://localhost:3000' }));
+app.use(cors());
 app.use(express.json());
 
-const PLANNER_DIR = path.join(__dirname, '..', 'planner');
+// PLANNER_DIR can be overridden via env var so Docker can mount any project's planner/
+const PLANNER_DIR = process.env.PLANNER_DIR || path.join(__dirname, '..', 'planner');
 const TASKS_DIR = path.join(PLANNER_DIR, 'tasks');
 const DONE_DIR = path.join(PLANNER_DIR, 'done');
 
@@ -244,4 +245,12 @@ app.put('/api/done/:uuid/reopen', async (req, res) => {
     }
 });
 
-app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
+// Serve React production build — must come AFTER all /api routes
+const buildDir = path.join(__dirname, '..', 'build');
+app.use(express.static(buildDir));
+app.get('*', (req, res) => res.sendFile(path.join(buildDir, 'index.html')));
+
+app.listen(PORT, () => {
+    console.log(`Taskflow server on http://localhost:${PORT}`);
+    console.log(`Planner dir: ${PLANNER_DIR}`);
+});
