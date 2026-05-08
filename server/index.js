@@ -248,7 +248,7 @@ app.put('/api/done/:uuid/reopen', async (req, res) => {
 // Serve React production build — must come AFTER all /api routes
 const buildDir = path.join(__dirname, '..', 'build');
 app.use(express.static(buildDir));
-app.get('*', (req, res) => res.sendFile(path.join(buildDir, 'index.html')));
+app.get('/{*path}', (req, res) => res.sendFile(path.join(buildDir, 'index.html')));
 
 app.listen(PORT, () => {
     console.log(`Taskflow server on http://localhost:${PORT}`);
