@@ -16,6 +16,17 @@ const PLANNER_DIR = process.env.PLANNER_DIR || path.join(__dirname, '..', 'plann
 const TASKS_DIR = path.join(PLANNER_DIR, 'tasks');
 const DONE_DIR = path.join(PLANNER_DIR, 'done');
 
+// Task ids are server-generated UUIDs. Reject anything else so a malicious
+// :uuid param (e.g. "..%2F..%2Fetc") can't escape TASKS_DIR/DONE_DIR when
+// joined into a filesystem path.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+app.param('uuid', (req, res, next, uuid) => {
+    if (!UUID_RE.test(uuid)) {
+        return res.status(400).json({ error: 'Invalid task id' });
+    }
+    next();
+});
+
 async function readTask(taskPath) {
     const content = await fsp.readFile(taskPath, 'utf-8');
     const { data, content: body } = matter(content);
