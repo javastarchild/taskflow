@@ -2,6 +2,19 @@
 
 This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
 
+## Security
+
+Agents treat task files as instructions, so the API is locked to the intended UI:
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `TASKFLOW_TOKEN` | _(unset)_ | When set, every `/api` request must send it in `X-Taskflow-Token`. The UI asks for it once per browser session. **Set this whenever the server is reachable beyond localhost.** |
+| `CORS_ORIGINS` | `http://localhost:3000,http://localhost:3001` | Browser origins allowed to call the API. Writes from any other `Origin` are refused with 403. |
+
+The API also rejects edits to server-owned front matter (`id`, `created`), validates `priority`/`status`/`tags`, and escapes `## PLANNER —` / `## WORKER —` headings inside comment text so one role can't impersonate the other.
+
+`npm run test:server` runs the API tests (Node's built-in test runner).
+
 ## Available Scripts
 
 In the project directory, you can run:

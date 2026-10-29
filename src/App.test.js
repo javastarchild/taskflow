@@ -1,8 +1,16 @@
 import { render, screen } from '@testing-library/react';
 import App from './App';
 
-test('renders learn react link', () => {
+// Plain functions, not jest.fn(): CRA's jest config resets mocks before each test.
+jest.mock('./api/client', () => ({
+  getTasks: () => Promise.resolve([]),
+  getDoneTasks: () => Promise.resolve([]),
+}));
+
+test('renders the planner shell with its tabs', async () => {
   render(<App />);
-  const linkElement = screen.getByText(/learn react/i);
-  expect(linkElement).toBeInTheDocument();
+  expect(screen.getByText('Planner')).toBeInTheDocument();
+  for (const tab of ['Active', 'Completed', 'Activity']) {
+    expect(await screen.findByRole('button', { name: tab })).toBeInTheDocument();
+  }
 });

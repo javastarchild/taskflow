@@ -38,6 +38,7 @@
     "eject": "react-scripts eject",
     "start": "react-scripts start",
     "test": "react-scripts test",
+    "test:server": "node --test server/",
     "server": "node server/index.js"
   },
   "proxy": "http://localhost:3001",
