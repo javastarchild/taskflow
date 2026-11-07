@@ -51,3 +51,7 @@ Leader: Claude (claude-opus-5-5). Worker: Codex (gpt-6-astra), delegated through
 - Wrote the HTTP contract first (`docs/API.md`) so backend and UI could proceed in parallel.
 - Created 7 tasks in `planner/tasks/` with the folder protocol (objective, acceptance criteria, ownership, completion-evidence requirement, `depends_on`).
 - Imported them into a live token-protected server (`npm run seed:self`), claimed/completed them with `bin/taskflow.js`, recorded Codex's completion reports under worker `codex-gpt-6-astra`, then exported the queue back to this folder with `taskflow export-planner planner`.
+
+## Parent review — 2026-11-07
+
+Codex reviewed the integrated branch and reran all 29 backend tests and the React tests. Fixed automatic refresh of task lists and goals so remote worker completions become visible without changing projects; added a regression test for remote completion and polling cleanup. React suite now has 14 passing tests. Production build passes.

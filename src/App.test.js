@@ -164,3 +164,22 @@ test('ignores a late task response after selecting a different project', async (
   expect(screen.queryByText('Stale alpha task')).not.toBeInTheDocument();
   expect(screen.getByText('Dependency')).toBeInTheDocument();
 });
+
+
+test('remote worker completion refreshes task lists without changing projects', async () => {
+  jest.useFakeTimers();
+  try {
+    const { unmount } = render(<App />);
+    await act(async () => {});
+    expect(screen.getByText('Dependency')).toBeInTheDocument();
+    tasks = [{ ...tasks[0], status: 'done', completion: { worker: 'remote-codex', summary: 'Finished remotely', completed: '2026-11-07' } }];
+    await act(async () => { jest.advanceTimersByTime(10000); });
+    expect(screen.queryByText('Dependency')).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Completed' }));
+    expect(screen.getByText('Dependency')).toBeInTheDocument();
+    unmount();
+    const calls = fetch.mock.calls.length;
+    await act(async () => { jest.advanceTimersByTime(20000); });
+    expect(fetch.mock.calls.length).toBe(calls);
+  } finally { jest.useRealTimers(); }
+});

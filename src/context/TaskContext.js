@@ -67,15 +67,23 @@ export function TaskProvider({ children }) {
     setLoading(true);
     setError(null);
     setVisibleTasks([]);
-    Promise.all([api.getTasks(project, goal), api.getGoals(project), goal ? api.getTasks(project) : null])
-      .then(([tasks, nextGoals, unfiltered]) => {
-        if (!current) return;
-        setVisibleTasks(tasks);
-        setAllTasks(unfiltered || tasks);
-        setGoals(nextGoals);
-      }).catch(err => { if (current) setError(err.message); })
-      .finally(() => { if (current) setLoading(false); });
-    return () => { current = false; };
+    let pending = false;
+    const loadTasks = () => {
+      if (pending) return;
+      pending = true;
+      Promise.all([api.getTasks(project, goal), api.getGoals(project), goal ? api.getTasks(project) : null])
+        .then(([tasks, nextGoals, unfiltered]) => {
+          if (!current) return;
+          setError(null);
+          setVisibleTasks(tasks);
+          setAllTasks(unfiltered || tasks);
+          setGoals(nextGoals);
+        }).catch(err => { if (current) setError(err.message); })
+        .finally(() => { pending = false; if (current) setLoading(false); });
+    };
+    loadTasks();
+    const interval = setInterval(loadTasks, 10000);
+    return () => { current = false; clearInterval(interval); };
   }, [project, goal, revision]);
 
   useEffect(() => {
