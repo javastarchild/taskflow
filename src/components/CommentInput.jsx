@@ -5,14 +5,18 @@ export function CommentInput({ onSubmit }) {
   const [author, setAuthor] = useState('worker');
   const [content, setContent] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
 
   async function handleSubmit(e) {
     e.preventDefault();
     if (!content.trim()) return;
     setSubmitting(true);
+    setError('');
     try {
       await onSubmit(author, content.trim());
       setContent('');
+    } catch (err) {
+      setError(err.message);
     } finally {
       setSubmitting(false);
     }
@@ -20,6 +24,7 @@ export function CommentInput({ onSubmit }) {
 
   return (
     <form className="comment-input-form" onSubmit={handleSubmit}>
+      {error && <p role="alert">{error}</p>}
       <div className="author-selector">
         {['worker', 'planner'].map(a => (
           <label key={a} className={`author-option${author === a ? ' selected' : ''} author-${a}`}>

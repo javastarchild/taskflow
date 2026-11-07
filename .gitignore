@@ -24,3 +24,6 @@ yarn-error.log*
 
 # Claude Code local config
 .claude/
+
+# Taskflow central database (default TASKFLOW_DB location)
+/data

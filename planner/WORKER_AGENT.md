@@ -1,5 +1,11 @@
 # Worker Agent Guide
 
+> **Central queue available.** Taskflow now stores tasks in a central database
+> behind an authenticated HTTP API, so this folder no longer needs to be copied
+> into projects. Agents should use the `taskflow` CLI (`claim`, `heartbeat`,
+> `comment`, `complete`) — see the repository README. This folder protocol is
+> still supported via `taskflow import-planner` / `export-planner`.
+
 **Read `planning.md` first** to find out which task to pick up and whether its dependencies are satisfied. Do not infer order by reading all task files.
 
 ---

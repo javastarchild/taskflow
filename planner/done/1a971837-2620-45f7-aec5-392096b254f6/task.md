@@ -1,9 +1,9 @@
 ---
 id: 1a971837-2620-45f7-aec5-392096b254f6
-title: Completed Tasks tab — list, detail, reopen, stats
+title: 'Completed Tasks tab — list, detail, reopen, stats'
 priority: medium
-created: 2026-05-02T00:00:00Z
-status: todo
+created: '2026-05-02T00:00:00.000Z'
+status: done
 depends_on:
   - 7430cb90-c026-4521-b5b7-ba085ce9c915
   - a3d5157c-a2b4-433c-b3e7-ab49cb94713e
@@ -11,8 +11,8 @@ tags:
   - react
   - frontend
   - ui
+goal: Planner UI v1 (legacy folder era)
 ---
-
 ## Objective
 
 Build the Completed Tasks tab: a list of done tasks with completion metadata, a read-only detail view, a "Reopen" action, and a simple summary stat.

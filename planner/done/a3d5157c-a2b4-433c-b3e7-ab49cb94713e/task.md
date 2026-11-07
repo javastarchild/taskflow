@@ -1,17 +1,17 @@
 ---
 id: a3d5157c-a2b4-433c-b3e7-ab49cb94713e
-title: App shell — data layer, React context, 3-tab layout
+title: 'App shell — data layer, React context, 3-tab layout'
 priority: high
-created: 2026-05-02T00:00:00Z
-status: todo
+created: '2026-05-02T00:00:00.000Z'
+status: done
 depends_on:
   - 7430cb90-c026-4521-b5b7-ba085ce9c915
 tags:
   - react
   - frontend
   - architecture
+goal: Planner UI v1 (legacy folder era)
 ---
-
 ## Objective
 
 Replace the current `App.js` placeholder with a working app shell: a data-fetching layer that talks to the backend API, a React context providing tasks state to all components, and a three-tab layout.

@@ -2,14 +2,14 @@
 id: 7430cb90-c026-4521-b5b7-ba085ce9c915
 title: Backend API server for planner file I/O
 priority: high
-created: 2026-05-02T00:00:00Z
-status: todo
+created: '2026-05-02T00:00:00.000Z'
+status: done
 tags:
   - backend
   - node
   - express
+goal: Planner UI v1 (legacy folder era)
 ---
-
 ## Objective
 
 Create a minimal Node/Express API server that reads and writes the `planner/` folder's markdown files. The React frontend will talk to this server instead of accessing the filesystem directly.

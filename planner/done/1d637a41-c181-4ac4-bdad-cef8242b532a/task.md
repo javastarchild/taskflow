@@ -1,9 +1,9 @@
 ---
 id: 1d637a41-c181-4ac4-bdad-cef8242b532a
-title: Active Tasks tab — list, create, edit, complete
+title: 'Active Tasks tab — list, create, edit, complete'
 priority: high
-created: 2026-05-02T00:00:00Z
-status: todo
+created: '2026-05-02T00:00:00.000Z'
+status: done
 depends_on:
   - 7430cb90-c026-4521-b5b7-ba085ce9c915
   - a3d5157c-a2b4-433c-b3e7-ab49cb94713e
@@ -11,8 +11,8 @@ tags:
   - react
   - frontend
   - ui
+goal: Planner UI v1 (legacy folder era)
 ---
-
 ## Objective
 
 Build the Active Tasks tab: a task list with priority indicators, a form to create new tasks, inline editing, and a "Mark Complete" action.

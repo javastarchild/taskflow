@@ -5,16 +5,24 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-npm start        # Dev server at http://localhost:3000 (hot reload)
-npm test         # Run tests in watch mode (Jest + React Testing Library)
-npm test -- --watchAll=false  # Run tests once (CI mode)
-npm run build    # Production build to /build
+npm run server                         # API + built UI on :3001 (TASKFLOW_DB, TASKFLOW_TOKEN)
+npm start                              # UI dev server on :3000, proxies /api to :3001
+npm run test:server                    # server/*.test.js — API, queue, legacy import, CLI
+CI=true npm test -- --watchAll=false   # React tests (Jest + React Testing Library)
+npm run build                          # Production UI build to /build
+node bin/taskflow.js help              # CLI
 ```
+
+Requires Node >= 22.5 (built-in `node:sqlite`).
 
 ## Architecture
 
-Standard Create React App structure with React 19. Entry point is `src/index.js`, which mounts `<App />` into `public/index.html#root`.
+- `server/db.js` — central SQLite store: projects, goals, tasks, comments, claim/lease lifecycle. Claims run in `BEGIN IMMEDIATE` transactions.
+- `server/app.js` — `createApp({ store, token, origins })`: Express routes from `docs/API.md`, bearer-token auth, Origin checks, legacy `/api/tasks` + `/api/done` adapters. No endpoint may execute commands or read server paths.
+- `server/legacy.js` — import/export of the old `planner/tasks|done/<uuid>/` folder protocol.
+- `server/client.js` + `bin/taskflow.js` — dependency-free HTTP client and `taskflow` CLI for agents in any repo.
+- `src/` — React 19 (CRA) UI: project selector, goals, project/goal-scoped tasks, queue panel, settings for API URL/token.
+- `docs/API.md` is the HTTP contract; keep it in sync with routes.
+- `planner/` is this repo's own task history in folder format (load it with `npm run seed:self`).
 
-All application logic lives in `src/App.js`. Tests use `@testing-library/react` — assert on rendered output, not implementation details.
-
-No routing, state management, or backend — this is a single-page static app.
+Tests use `@testing-library/react` — assert on rendered output, not implementation details. Server tests use `node:test` with `server/helpers.js`.

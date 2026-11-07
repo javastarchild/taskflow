@@ -1,0 +1,28 @@
+.project-panel, .queue-panel, .settings-panel {
+  padding: 16px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  background: #fafafa;
+}
+.project-panel label, .settings-panel label {
+  display: block;
+  margin: 8px 0;
+}
+.project-panel input, .project-panel textarea, .project-panel select,
+.settings-panel input:not([type="checkbox"]) {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+.queue-counts { display: flex; flex-wrap: wrap; gap: 16px; }
+.queue-counts div { min-width: 70px; }
+.queue-counts dd { margin: 4px 0; font-weight: bold; }
+.queue-workers { overflow-x: auto; }
+.queue-workers table { width: 100%; text-align: left; border-collapse: collapse; }
+.queue-workers th, .queue-workers td { padding: 8px; border-bottom: 1px solid #ddd; }
+.task-queue-meta { padding: 0 16px 12px; color: #555; font-size: 0.85rem; overflow-wrap: anywhere; }
+[role="alert"] { color: #a32323; }

@@ -1,0 +1,7 @@
+.git
+node_modules
+build
+data
+e2e-tests
+coverage
+*.db

@@ -1,17 +1,19 @@
-FROM node:20-slim
+# node:sqlite (the central store) needs Node >= 22.5
+FROM node:22-slim
 WORKDIR /app
 
-# Install dependencies
 COPY package*.json ./
 RUN npm ci
 
-# Build React SPA
+# Build the React SPA; the API server serves it from /build
 COPY . .
 RUN npm run build
 
-# Planner dir is mounted at runtime via volume
-ENV PLANNER_DIR=/planner
+# All projects, goals and tasks live in one SQLite file on this volume.
+ENV TASKFLOW_DB=/data/taskflow.db
 ENV PORT=3000
+VOLUME /data
 
 EXPOSE 3000
+# The server refuses to listen beyond loopback without TASKFLOW_TOKEN.
 CMD ["node", "server/index.js"]

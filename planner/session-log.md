@@ -41,3 +41,13 @@ Created the planner/worker file-based coordination system from scratch:
 1. Read `planner/planning.md` for current task status
 2. Verify `planner/WORKER_AGENT.md` matches the canonical version (numbered 6-step flow, `task.md`, `mv` to done/, `completion.md`)
 3. Start workers on Phase 1 task (`7430cb90`) — nothing else can proceed until it's done
+
+---
+
+## Session 2 — 2026-11-07 (central queue)
+
+Leader: Claude (claude-opus-5-5). Worker: Codex (gpt-6-astra), delegated through T3 in a shared checkout with strict path ownership (Codex: `src/**`; Claude: everything else).
+
+- Wrote the HTTP contract first (`docs/API.md`) so backend and UI could proceed in parallel.
+- Created 7 tasks in `planner/tasks/` with the folder protocol (objective, acceptance criteria, ownership, completion-evidence requirement, `depends_on`).
+- Imported them into a live token-protected server (`npm run seed:self`), claimed/completed them with `bin/taskflow.js`, recorded Codex's completion reports under worker `codex-gpt-6-astra`, then exported the queue back to this folder with `taskflow export-planner planner`.

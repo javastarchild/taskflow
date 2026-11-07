@@ -1,8 +1,7 @@
 ---
-completed: 2026-05-02T07:00:00Z
+completed: '2026-05-02T07:00:00.000Z'
 worker: claude-sonnet-4-6
 ---
-
 ## What Was Done
 
 Built ActiveTasksTab with full task list (priority-sorted), create form, inline edit, expand/collapse detail panel, and Mark Complete flow with summary prompt.

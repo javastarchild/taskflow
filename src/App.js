@@ -1,4 +1,7 @@
 import './App.css';
+import { Settings } from './components/Settings';
+import { ProjectPanel } from './components/ProjectPanel';
+import { QueuePanel } from './components/QueuePanel';
 import { TaskProvider } from './context/TaskContext';
 import { NavProvider, useNav } from './context/NavContext';
 import { useTasks } from './hooks/useTasks';
@@ -34,7 +37,7 @@ function TabContent({ active }) {
 }
 
 function AppShell() {
-  const { tasks, doneTasks } = useTasks();
+  const { tasks, doneTasks, project, goal, error, loading } = useTasks();
   const { activeTab, setActiveTab } = useNav();
 
   const totalComments = [...tasks, ...doneTasks].reduce(
@@ -44,9 +47,14 @@ function AppShell() {
   return (
     <div className="App">
       <h1 className="app-title">Planner</h1>
+      <Settings />
+      <ProjectPanel />
+      {error && <p role="alert">{error}</p>}
+      {loading && <p role="status">Loading…</p>}
+      {project && <QueuePanel />}
       <TabBar active={activeTab} onChange={setActiveTab} activityCount={totalComments} />
       <div className="tab-content">
-        <TabContent active={activeTab} />
+        {project && <TabContent key={`${project}:${goal}`} active={activeTab} />}
       </div>
     </div>
   );

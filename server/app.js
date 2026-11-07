@@ -1,331 +1,227 @@
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const fsp = require('fs').promises;
-const matter = require('gray-matter');
 const crypto = require('crypto');
+const { openStore, StoreError, UUID_RE } = require('./db');
+const { importTasks } = require('./legacy');
 
-const app = express();
-
-// Agents treat task files as instructions, so any page that can write tasks
-// can steer them. Three layers keep that to the intended UI:
+// Agents treat tasks as instructions, so anything that can write tasks can
+// steer them. Three layers keep that to intended clients:
 //   1. CORS is limited to CORS_ORIGINS (comma-separated).
 //   2. State-changing requests whose Origin isn't allowed are refused, even
 //      if the browser sent them as "simple" requests that skip preflight.
-//   3. When TASKFLOW_TOKEN is set, every /api request must send it in the
-//      X-Taskflow-Token header (the SPA asks for it once per session).
-const ALLOWED_ORIGINS = (process.env.CORS_ORIGINS || 'http://localhost:3000,http://localhost:3001')
-    .split(',').map((o) => o.trim()).filter(Boolean);
-const TOKEN = process.env.TASKFLOW_TOKEN || '';
+//   3. When a token is configured, every /api request except /api/health must
+//      send it as "Authorization: Bearer <token>" or "X-Taskflow-Token".
+// There is deliberately no endpoint that runs commands on the server.
 
-app.use(cors({ origin: ALLOWED_ORIGINS }));
-app.use(express.json({ limit: '256kb' }));
-
-app.use('/api', (req, res, next) => {
-    const origin = req.get('Origin');
-    if (req.method !== 'GET' && origin && !ALLOWED_ORIGINS.includes(origin)) {
-        return res.status(403).json({ error: 'Origin not allowed' });
-    }
-    if (TOKEN) {
-        const given = Buffer.from(req.get('X-Taskflow-Token') || '');
-        const expected = Buffer.from(TOKEN);
-        if (given.length !== expected.length || !crypto.timingSafeEqual(given, expected)) {
-            return res.status(401).json({ error: 'Missing or invalid X-Taskflow-Token' });
-        }
-    }
-    next();
-});
-
-const PRIORITIES = ['high', 'medium', 'low'];
-const STATUSES = ['todo', 'in-progress'];
-// Front-matter fields a client may change. id/created are server-owned.
-const EDITABLE_FIELDS = ['title', 'priority', 'status', 'tags', 'depends_on', 'body'];
-
-function validateTaskFields(fields) {
-    if ('title' in fields && (typeof fields.title !== 'string' || !fields.title.trim() || fields.title.length > 200))
-        return 'title must be a non-empty string (max 200 chars)';
-    if ('priority' in fields && !PRIORITIES.includes(fields.priority))
-        return `priority must be one of ${PRIORITIES.join(', ')}`;
-    if ('status' in fields && !STATUSES.includes(fields.status))
-        return `status must be one of ${STATUSES.join(', ')}`;
-    if ('tags' in fields && (!Array.isArray(fields.tags) || !fields.tags.every((t) => typeof t === 'string')))
-        return 'tags must be an array of strings';
-    if ('depends_on' in fields && (!Array.isArray(fields.depends_on) || !fields.depends_on.every((u) => UUID_RE.test(u))))
-        return 'depends_on must be an array of task ids';
-    if ('body' in fields && typeof fields.body !== 'string')
-        return 'body must be a string';
-    return null;
-}
-
-// Comment threads are split on "## PLANNER — ..." / "## WORKER — ..." lines,
-// so a comment containing such a line could impersonate the other role.
-// Escape the heading marker; Markdown renders "\##" as a literal "##".
+// Comment threads used to be split on "## PLANNER — ..." / "## WORKER — ..."
+// lines, and exported planner folders still are, so text containing such a
+// line could impersonate the other role. Escape the heading marker; Markdown
+// renders "\##" as a literal "##".
 function neutralizeRoleHeadings(text) {
     return text.replace(/^([ \t]*)(#{1,6}[ \t]*(?:PLANNER|WORKER)\b)/gim, '$1\\$2');
 }
 
-// PLANNER_DIR can be overridden via env var so Docker can mount any project's planner/
-const PLANNER_DIR = process.env.PLANNER_DIR || path.join(__dirname, '..', 'planner');
-const TASKS_DIR = path.join(PLANNER_DIR, 'tasks');
-const DONE_DIR = path.join(PLANNER_DIR, 'done');
-
-// Task ids are server-generated UUIDs. Reject anything else so a malicious
-// :uuid param (e.g. "..%2F..%2Fetc") can't escape TASKS_DIR/DONE_DIR when
-// joined into a filesystem path.
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-app.param('uuid', (req, res, next, uuid) => {
-    if (!UUID_RE.test(uuid)) {
-        return res.status(400).json({ error: 'Invalid task id' });
-    }
-    next();
-});
-
-async function readTask(taskPath) {
-    const content = await fsp.readFile(taskPath, 'utf-8');
-    const { data, content: body } = matter(content);
-    return { ...data, body };
+function parseOrigins(value) {
+    return (value || 'http://localhost:3000,http://localhost:3001').split(',').map((o) => o.trim()).filter(Boolean);
 }
 
-function parseComments(content) {
-    const comments = [];
-    const regex = /^## (PLANNER|WORKER) — (.+)$/gm;
-    let match;
-    const positions = [];
-    while ((match = regex.exec(content)) !== null) {
-        positions.push({
-            author: match[1].toLowerCase(),
-            timestamp: match[2].trim(),
-            contentStart: match.index + match[0].length,
-            index: match.index
-        });
-    }
-    for (let i = 0; i < positions.length; i++) {
-        const end = i + 1 < positions.length ? positions[i + 1].index : content.length;
-        comments.push({
-            author: positions[i].author,
-            timestamp: positions[i].timestamp,
-            content: content.slice(positions[i].contentStart, end).trim()
-        });
-    }
-    return comments;
+function tokenMatches(given, expected) {
+    const a = Buffer.from(given || '');
+    const b = Buffer.from(expected);
+    return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
-async function readComments(commentsPath) {
+function presentedToken(req) {
+    const header = req.get('Authorization') || '';
+    const bearer = /^Bearer\s+(.+)$/i.exec(header);
+    return bearer ? bearer[1].trim() : req.get('X-Taskflow-Token') || '';
+}
+
+// The bundled UI served by this server sends its own origin; that is never a
+// cross-site request, so it does not need to be listed in CORS_ORIGINS.
+function sameOrigin(req, origin) {
     try {
-        return parseComments(await fsp.readFile(commentsPath, 'utf-8'));
+        return new URL(origin).host === req.get('Host');
     } catch {
-        return [];
+        return false;
     }
 }
 
-// GET /api/tasks
-app.get('/api/tasks', async (req, res) => {
-    try {
-        const uuids = await fsp.readdir(TASKS_DIR);
-        const tasks = await Promise.all(uuids.map(async (uuid) => {
-            try {
-                const task = await readTask(path.join(TASKS_DIR, uuid, 'task.md'));
-                const comments = await readComments(path.join(TASKS_DIR, uuid, 'comments.md'));
-                return { ...task, comments };
-            } catch { return null; }
-        }));
-        res.json(tasks.filter(Boolean));
-    } catch (err) {
-        res.status(500).json({ error: err.message });
+function createApp({
+    store,
+    token = process.env.TASKFLOW_TOKEN || '',
+    origins = parseOrigins(process.env.CORS_ORIGINS),
+    defaultProject = process.env.TASKFLOW_DEFAULT_PROJECT || 'default',
+    buildDir = path.join(__dirname, '..', 'build'),
+} = {}) {
+    const app = express();
+    app.disable('x-powered-by');
+    app.use(cors({ origin: origins, allowedHeaders: ['Content-Type', 'Authorization', 'X-Taskflow-Token'] }));
+    // Imports carry a whole planner folder, so they get a larger body limit.
+    app.use('/api/projects/:project/import', express.json({ limit: '5mb' }));
+    app.use(express.json({ limit: '256kb' }));
+
+    app.get('/api/health', (req, res) => res.json({ ok: true, version: 1, auth: Boolean(token) }));
+
+    app.use('/api', (req, res, next) => {
+        const origin = req.get('Origin');
+        if (req.method !== 'GET' && req.method !== 'OPTIONS' && origin && !origins.includes(origin) && !sameOrigin(req, origin)) {
+            return res.status(403).json({ error: 'Origin not allowed' });
+        }
+        if (token && !tokenMatches(presentedToken(req), token)) {
+            return res.status(401).json({ error: 'Missing or invalid token (send Authorization: Bearer <TASKFLOW_TOKEN>)' });
+        }
+        next();
+    });
+
+    // Every :id is a server-generated UUID; reject anything else early.
+    app.param('id', (req, res, next, id) => {
+        if (!UUID_RE.test(id)) return res.status(400).json({ error: 'Invalid id' });
+        next();
+    });
+
+    const body = (req) => (req.body && typeof req.body === 'object' && !Array.isArray(req.body) ? req.body : {});
+
+    function sanitizeTaskInput(input) {
+        const fields = { ...input };
+        if (typeof fields.body === 'string') fields.body = neutralizeRoleHeadings(fields.body);
+        return fields;
     }
-});
 
-// GET /api/tasks/:uuid
-app.get('/api/tasks/:uuid', async (req, res) => {
-    try {
-        const task = await readTask(path.join(TASKS_DIR, req.params.uuid, 'task.md'));
-        const comments = await readComments(path.join(TASKS_DIR, req.params.uuid, 'comments.md'));
-        res.json({ ...task, comments });
-    } catch (err) {
-        if (err.code === 'ENOENT') return res.status(404).json({ error: 'Task not found' });
-        res.status(500).json({ error: err.message });
+    function newTaskFields(input) {
+        const { description, body: rawBody, ...rest } = input;
+        if (description !== undefined && typeof description !== 'string')
+            throw new StoreError(400, 'description must be a string');
+        const taskBody = rawBody !== undefined ? rawBody : description ? `## Objective\n\n${description}\n` : '';
+        return sanitizeTaskInput({ ...rest, body: taskBody });
     }
-});
 
-// POST /api/tasks
-app.post('/api/tasks', async (req, res) => {
-    const { title, description, priority = 'medium', tags = [] } = req.body || {};
-    if (!title || !description) return res.status(400).json({ error: 'title and description are required' });
-    if (typeof description !== 'string') return res.status(400).json({ error: 'description must be a string' });
-    const invalid = validateTaskFields({ title, priority, tags });
-    if (invalid) return res.status(400).json({ error: invalid });
-    const uuid = crypto.randomUUID();
-    const frontMatter = { id: uuid, title, priority, created: new Date().toISOString(), status: 'todo', tags };
-    const body = `## Objective\n\n${neutralizeRoleHeadings(description)}\n`;
-    const taskDir = path.join(TASKS_DIR, uuid);
-    await fsp.mkdir(taskDir, { recursive: true });
-    await fsp.writeFile(path.join(taskDir, 'task.md'), matter.stringify(body, frontMatter));
-    res.status(201).json({ ...frontMatter, body });
-});
-
-// PUT /api/tasks/:uuid
-app.put('/api/tasks/:uuid', async (req, res) => {
-    const taskPath = path.join(TASKS_DIR, req.params.uuid, 'task.md');
-    try {
-        const updates = req.body || {};
-        const unknown = Object.keys(updates).filter((k) => !EDITABLE_FIELDS.includes(k));
-        if (unknown.length) return res.status(400).json({ error: `fields not editable: ${unknown.join(', ')}` });
-        const invalid = validateTaskFields(updates);
-        if (invalid) return res.status(400).json({ error: invalid });
-        const { body: existingBody, ...existingFront } = await readTask(taskPath);
-        const { body: newBody, ...frontUpdates } = updates;
-        const updatedFront = { ...existingFront, ...frontUpdates };
-        const updatedBody = newBody !== undefined ? newBody : existingBody;
-        await fsp.writeFile(taskPath, matter.stringify(updatedBody, updatedFront));
-        res.json({ ...updatedFront, body: updatedBody });
-    } catch (err) {
-        if (err.code === 'ENOENT') return res.status(404).json({ error: 'Task not found' });
-        res.status(500).json({ error: err.message });
+    function commentInput(input) {
+        const fields = { ...input };
+        if (typeof fields.content === 'string') fields.content = neutralizeRoleHeadings(fields.content);
+        return fields;
     }
-});
 
-// GET /api/tasks/:uuid/comments
-app.get('/api/tasks/:uuid/comments', async (req, res) => {
-    try {
-        await fsp.access(path.join(TASKS_DIR, req.params.uuid, 'task.md'));
-        res.json(await readComments(path.join(TASKS_DIR, req.params.uuid, 'comments.md')));
-    } catch (err) {
-        if (err.code === 'ENOENT') return res.status(404).json({ error: 'Task not found' });
-        res.status(500).json({ error: err.message });
+    // ---- v1: projects ---------------------------------------------------
+
+    app.get('/api/projects', (req, res) => res.json(store.listProjects()));
+    app.post('/api/projects', (req, res) => res.status(201).json(store.createProject(body(req))));
+    app.get('/api/projects/:project', (req, res) => res.json(store.getProject(req.params.project)));
+    app.put('/api/projects/:project', (req, res) => res.json(store.updateProject(req.params.project, body(req))));
+
+    // ---- v1: goals ------------------------------------------------------
+
+    app.get('/api/projects/:project/goals', (req, res) => res.json(store.listGoals(req.params.project)));
+    app.post('/api/projects/:project/goals', (req, res) => res.status(201).json(store.createGoal(req.params.project, body(req))));
+    app.get('/api/goals/:id', (req, res) => res.json(store.getGoal(req.params.id)));
+    app.put('/api/goals/:id', (req, res) => res.json(store.updateGoal(req.params.id, body(req))));
+
+    // ---- v1: tasks and queue -------------------------------------------
+
+    function listQuery(req) {
+        const { status, goal, ready } = req.query;
+        if (goal !== undefined && goal !== 'none' && !UUID_RE.test(goal)) throw new StoreError(400, 'goal must be a goal id or "none"');
+        return { status, goal, ready: ready === '1' || ready === 'true' };
     }
-});
 
-// POST /api/tasks/:uuid/comments
-app.post('/api/tasks/:uuid/comments', async (req, res) => {
-    const { author, content } = req.body || {};
-    if (!author || !content) return res.status(400).json({ error: 'author and content are required' });
-    if (typeof author !== 'string' || typeof content !== 'string')
-        return res.status(400).json({ error: 'author and content must be strings' });
-    if (!['planner', 'worker'].includes(author.toLowerCase()))
-        return res.status(400).json({ error: 'author must be "planner" or "worker"' });
-    try {
-        await fsp.access(path.join(TASKS_DIR, req.params.uuid, 'task.md'));
-        const timestamp = new Date().toISOString();
-        const safe = neutralizeRoleHeadings(content);
-        await fsp.appendFile(
-            path.join(TASKS_DIR, req.params.uuid, 'comments.md'),
-            `\n## ${author.toUpperCase()} — ${timestamp}\n${safe}\n`
-        );
-        res.status(201).json({ author: author.toLowerCase(), timestamp, content: safe });
-    } catch (err) {
-        if (err.code === 'ENOENT') return res.status(404).json({ error: 'Task not found' });
-        res.status(500).json({ error: err.message });
-    }
-});
+    app.get('/api/projects/:project/tasks', (req, res) => res.json(store.listTasks(req.params.project, listQuery(req))));
+    app.post('/api/projects/:project/tasks', (req, res) =>
+        res.status(201).json(store.createTask(req.params.project, newTaskFields(body(req)))));
+    app.get('/api/projects/:project/queue', (req, res) => res.json(store.queueStatus(req.params.project)));
+    app.post('/api/projects/:project/claim', (req, res) => {
+        const task = store.claimNext(req.params.project, body(req));
+        if (!task) return res.status(204).end();
+        res.json(task);
+    });
 
-// POST /api/tasks/:uuid/complete
-app.post('/api/tasks/:uuid/complete', async (req, res) => {
-    const { summary, filesChanged, notes } = req.body || {};
-    if (!summary || typeof summary !== 'string') return res.status(400).json({ error: 'summary is required' });
-    const srcDir = path.join(TASKS_DIR, req.params.uuid);
-    const dstDir = path.join(DONE_DIR, req.params.uuid);
-    try {
-        await fsp.access(srcDir);
-        await fsp.rename(srcDir, dstDir);
-        let body = `## What Was Done\n${summary}\n`;
-        if (filesChanged) body += `\n## Files Changed\n${filesChanged}\n`;
-        if (notes) body += `\n## Notes for Planner\n${notes}\n`;
-        await fsp.writeFile(
-            path.join(dstDir, 'completion.md'),
-            matter.stringify(body, { completed: new Date().toISOString(), worker: 'api' })
-        );
-        res.json(await readTask(path.join(dstDir, 'task.md')));
-    } catch (err) {
-        if (err.code === 'ENOENT') return res.status(404).json({ error: 'Task not found' });
-        res.status(500).json({ error: err.message });
-    }
-});
-
-// GET /api/done
-app.get('/api/done', async (req, res) => {
-    try {
-        const uuids = await fsp.readdir(DONE_DIR);
-        const tasks = await Promise.all(uuids.map(async (uuid) => {
-            try {
-                const task = await readTask(path.join(DONE_DIR, uuid, 'task.md'));
-                const comments = await readComments(path.join(DONE_DIR, uuid, 'comments.md'));
-                let completion = {};
-                try {
-                    const { data } = matter(await fsp.readFile(path.join(DONE_DIR, uuid, 'completion.md'), 'utf-8'));
-                    completion = data;
-                } catch {}
-                return { ...task, comments, completion };
-            } catch { return null; }
-        }));
-        res.json(tasks.filter(Boolean));
-    } catch (err) {
-        res.status(500).json({ error: err.message });
-    }
-});
-
-// POST /api/done/:uuid/comments
-app.post('/api/done/:uuid/comments', async (req, res) => {
-    const { author, content } = req.body || {};
-    if (!author || !content) return res.status(400).json({ error: 'author and content are required' });
-    if (typeof author !== 'string' || typeof content !== 'string')
-        return res.status(400).json({ error: 'author and content must be strings' });
-    if (!['planner', 'worker'].includes(author.toLowerCase()))
-        return res.status(400).json({ error: 'author must be "planner" or "worker"' });
-    try {
-        await fsp.access(path.join(DONE_DIR, req.params.uuid, 'task.md'));
-        const timestamp = new Date().toISOString();
-        const safe = neutralizeRoleHeadings(content);
-        await fsp.appendFile(
-            path.join(DONE_DIR, req.params.uuid, 'comments.md'),
-            `\n## ${author.toUpperCase()} — ${timestamp}\n${safe}\n`
-        );
-        res.status(201).json({ author: author.toLowerCase(), timestamp, content: safe });
-    } catch (err) {
-        if (err.code === 'ENOENT') return res.status(404).json({ error: 'Task not found' });
-        res.status(500).json({ error: err.message });
-    }
-});
-
-// GET /api/done/:uuid
-app.get('/api/done/:uuid', async (req, res) => {
-    const doneDir = path.join(DONE_DIR, req.params.uuid);
-    try {
-        const task = await readTask(path.join(doneDir, 'task.md'));
-        const comments = await readComments(path.join(doneDir, 'comments.md'));
-        let completion = {};
+    // Upsert tasks read from a legacy planner/ folder by the CLI. The server
+    // never reads paths from the request; clients send parsed task records.
+    app.post('/api/projects/:project/import', (req, res) => {
+        const { tasks, goal, overwrite, project_name: projectName } = body(req);
+        if (goal !== undefined && (typeof goal !== 'string' || !goal.trim())) throw new StoreError(400, 'goal must be a string');
         try {
-            const { data, content: compBody } = matter(await fsp.readFile(path.join(doneDir, 'completion.md'), 'utf-8'));
-            completion = { ...data, body: compBody };
-        } catch {}
-        res.json({ ...task, comments, completion });
-    } catch (err) {
-        if (err.code === 'ENOENT') return res.status(404).json({ error: 'Task not found' });
-        res.status(500).json({ error: err.message });
+            res.json(importTasks(store, tasks, {
+                project: req.params.project, projectName, goal, overwrite: overwrite === true, sanitize: neutralizeRoleHeadings,
+            }));
+        } catch (err) {
+            if (err.status === 400 && !(err instanceof StoreError)) throw new StoreError(400, err.message);
+            throw err;
+        }
+    });
+
+    app.get('/api/tasks/:id', (req, res) => res.json(store.getTask(req.params.id)));
+    app.put('/api/tasks/:id', (req, res) => {
+        const fields = { ...body(req) };
+        // The pre-v1 UI sent status with every edit; tolerate a no-op status.
+        if ('status' in fields) {
+            if (fields.status !== store.getTask(req.params.id).status)
+                throw new StoreError(400, 'status changes go through claim/release/complete/reopen');
+            delete fields.status;
+        }
+        res.json(store.updateTask(req.params.id, sanitizeTaskInput(fields)));
+    });
+    app.get('/api/tasks/:id/comments', (req, res) => {
+        store.getTask(req.params.id);
+        res.json(store.listComments(req.params.id));
+    });
+    app.post('/api/tasks/:id/comments', (req, res) => res.status(201).json(store.addComment(req.params.id, commentInput(body(req)))));
+    app.post('/api/tasks/:id/claim', (req, res) => res.json(store.claimTask(req.params.id, body(req))));
+    app.post('/api/tasks/:id/heartbeat', (req, res) => res.json(store.heartbeat(req.params.id, body(req))));
+    app.post('/api/tasks/:id/release', (req, res) => res.json(store.release(req.params.id, body(req))));
+    app.post('/api/tasks/:id/complete', (req, res) => {
+        const { summary, files_changed, filesChanged, notes, worker } = body(req);
+        res.json(store.complete(req.params.id, { summary, files_changed: files_changed ?? filesChanged, notes, worker }));
+    });
+    app.post('/api/tasks/:id/reopen', (req, res) => res.json(store.reopen(req.params.id)));
+
+    // ---- legacy planner routes, scoped to one project ------------------
+
+    const legacyProject = (req) => store.ensureProject(typeof req.query.project === 'string' ? req.query.project : defaultProject).id;
+    const active = (tasks) => tasks.filter((t) => t.status !== 'done');
+
+    app.get('/api/tasks', (req, res) => res.json(active(store.listTasks(legacyProject(req)))));
+    app.post('/api/tasks', (req, res) => {
+        const { title, description, priority, tags } = body(req);
+        if (!title || !description) throw new StoreError(400, 'title and description are required');
+        res.status(201).json(store.createTask(legacyProject(req), newTaskFields({ title, description, priority, tags })));
+    });
+    app.get('/api/done', (req, res) => res.json(store.listTasks(legacyProject(req), { status: 'done' })));
+    function doneTask(id) {
+        const task = store.getTask(id);
+        if (task.status !== 'done') throw new StoreError(404, 'Task not found');
+        return task;
     }
-});
+    app.get('/api/done/:id', (req, res) => res.json(doneTask(req.params.id)));
+    app.put('/api/done/:id/reopen', (req, res) => {
+        doneTask(req.params.id);
+        res.json(store.reopen(req.params.id));
+    });
+    app.post('/api/done/:id/comments', (req, res) => {
+        doneTask(req.params.id);
+        res.status(201).json(store.addComment(req.params.id, commentInput(body(req))));
+    });
 
-// PUT /api/done/:uuid/reopen
-app.put('/api/done/:uuid/reopen', async (req, res) => {
-    const srcDir = path.join(DONE_DIR, req.params.uuid);
-    const dstDir = path.join(TASKS_DIR, req.params.uuid);
-    try {
-        await fsp.access(srcDir);
-        try { await fsp.unlink(path.join(srcDir, 'completion.md')); } catch {}
-        await fsp.rename(srcDir, dstDir);
-        const taskPath = path.join(dstDir, 'task.md');
-        const { body, ...front } = await readTask(taskPath);
-        front.status = 'todo';
-        await fsp.writeFile(taskPath, matter.stringify(body, front));
-        res.json({ ...front, body });
-    } catch (err) {
-        if (err.code === 'ENOENT') return res.status(404).json({ error: 'Task not found' });
-        res.status(500).json({ error: err.message });
-    }
-});
+    app.use('/api', (req, res) => res.status(404).json({ error: 'Not found' }));
 
-// Serve React production build — must come AFTER all /api routes
-const buildDir = path.join(__dirname, '..', 'build');
-app.use(express.static(buildDir));
-app.get('/{*path}', (req, res) => res.sendFile(path.join(buildDir, 'index.html')));
+    // eslint-disable-next-line no-unused-vars
+    app.use('/api', (err, req, res, next) => {
+        if (err instanceof StoreError) return res.status(err.status).json({ error: err.message });
+        if (err.type === 'entity.parse.failed') return res.status(400).json({ error: 'Invalid JSON body' });
+        if (err.type === 'entity.too.large') return res.status(413).json({ error: 'Request body too large' });
+        console.error(err);
+        res.status(500).json({ error: 'Internal server error' });
+    });
 
-module.exports = { app, neutralizeRoleHeadings, validateTaskFields, PLANNER_DIR, TOKEN };
+    // Serve the React production build — must come AFTER all /api routes.
+    app.use(express.static(buildDir));
+    app.get('/{*path}', (req, res, next) => res.sendFile(path.join(buildDir, 'index.html'), (err) => err && next()));
+
+    return app;
+}
+
+function defaultDbPath() {
+    return process.env.TASKFLOW_DB || path.join(__dirname, '..', 'data', 'taskflow.db');
+}
+
+module.exports = { createApp, openStore, neutralizeRoleHeadings, parseOrigins, defaultDbPath };

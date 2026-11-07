@@ -1,8 +1,7 @@
 ---
-completed: 2026-05-02T07:00:00Z
+completed: '2026-05-02T07:00:00.000Z'
 worker: claude-sonnet-4-6
 ---
-
 ## What Was Done
 
 Built CompletedTasksTab with stats bar (total / today counts), task list sorted by completion date, lazy-loaded detail panel (fetches GET /api/done/:uuid on expand), completion section parsing, and Reopen action.

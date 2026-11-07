@@ -1,5 +1,11 @@
 # Planner / Worker System
 
+> **Central queue available.** Taskflow now stores tasks in a central database
+> behind an authenticated HTTP API, so this folder no longer needs to be copied
+> into projects. Agents should use the `taskflow` CLI (`claim`, `heartbeat`,
+> `comment`, `complete`) — see the repository README. This folder protocol is
+> still supported via `taskflow import-planner` / `export-planner`.
+
 A file-based task coordination system for AI agents and human contributors. Drop the `planner/` directory into any project to coordinate multi-agent work.
 
 ## How It Works

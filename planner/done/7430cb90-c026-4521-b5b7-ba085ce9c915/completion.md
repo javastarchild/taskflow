@@ -1,8 +1,7 @@
 ---
-completed: 2026-05-02T06:32:00Z
+completed: '2026-05-02T06:32:00.000Z'
 worker: claude-sonnet-4-6
 ---
-
 ## What Was Done
 
 Implemented all 11 required API endpoints in `server/index.js` reading/writing real planner markdown files via `gray-matter`. Added `"proxy": "http://localhost:3001"` to `package.json`.

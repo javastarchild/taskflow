@@ -27,12 +27,6 @@ function isToday(iso) {
     d.getDate() === now.getDate();
 }
 
-function parseSection(body, heading) {
-  if (!body) return '';
-  const match = body.match(new RegExp(`## ${heading}\\n([\\s\\S]*?)(?=\\n## |$)`));
-  return match ? match[1].trim() : '';
-}
-
 function sortDone(tasks) {
   return [...tasks].sort((a, b) => {
     const ca = a.completion?.completed ?? '';
@@ -48,6 +42,7 @@ export function CompletedTasksTab() {
   const [detail, setDetail] = useState(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState('');
 
   const sorted = sortDone(doneTasks);
   const completedToday = doneTasks.filter(t => isToday(t.completion?.completed)).length;
@@ -56,8 +51,11 @@ export function CompletedTasksTab() {
     setSelectedId(id);
     setDetail(null);
     setLoadingDetail(true);
+    setError('');
     try {
       setDetail(await getDoneTask(id));
+    } catch (err) {
+      setError(err.message);
     } finally {
       setLoadingDetail(false);
     }
@@ -77,10 +75,13 @@ export function CompletedTasksTab() {
 
   async function handleReopen(uuid) {
     setSubmitting(true);
+    setError('');
     try {
       await reopenTask(uuid);
       setSelectedId(null);
       setDetail(null);
+    } catch (err) {
+      setError(err.message);
     } finally {
       setSubmitting(false);
     }
@@ -95,6 +96,7 @@ export function CompletedTasksTab() {
 
   return (
     <div className="completed-tab">
+      {error && <p role="alert">{error}</p>}
       <div className="stats-bar">
         <span className="stat"><strong>{doneTasks.length}</strong> completed total</span>
         <span className="stat-divider">·</span>
@@ -127,10 +129,9 @@ export function CompletedTasksTab() {
                   {loadingDetail && <p className="loading">Loading…</p>}
 
                   {detail && detail.id === task.id && (() => {
-                    const body = detail.completion?.body ?? '';
-                    const summary = parseSection(body, 'What Was Done');
-                    const filesChanged = parseSection(body, 'Files Changed');
-                    const plannerNotes = parseSection(body, 'Notes for Planner');
+                    const summary = detail.completion?.summary;
+                    const filesChanged = detail.completion?.files_changed;
+                    const plannerNotes = detail.completion?.notes;
                     const comments = detail.comments ?? [];
 
                     return (

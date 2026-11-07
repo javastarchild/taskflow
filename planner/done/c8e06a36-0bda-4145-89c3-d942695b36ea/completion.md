@@ -1,8 +1,7 @@
 ---
-completed: 2026-05-02T08:00:00Z
+completed: '2026-05-02T08:00:00.000Z'
 worker: claude-sonnet-4-6
 ---
-
 ## What Was Done
 
 Added comment input to Active and Completed task detail panels, built ActivityFeedTab with cross-task comment feed (newest first, show more/less, task links), added NavContext for cross-tab task navigation, added comment count badge to Activity tab, and fixed GET /api/tasks + GET /api/done to include comments in list responses.

@@ -1,4 +1,7 @@
 {
+  "bin": {
+    "taskflow": "bin/taskflow.js"
+  },
   "browserslist": {
     "development": [
       "last 1 chrome version",
@@ -25,6 +28,9 @@
     "react-scripts": "5.0.1",
     "web-vitals": "^2.1.4"
   },
+  "engines": {
+    "node": ">=22.5"
+  },
   "eslintConfig": {
     "extends": [
       "react-app",
@@ -33,14 +39,16 @@
   },
   "name": "taskflow",
   "private": true,
+  "proxy": "http://localhost:3001",
   "scripts": {
     "build": "react-scripts build",
     "eject": "react-scripts eject",
     "start": "react-scripts start",
     "test": "react-scripts test",
-    "test:server": "node --test server/",
-    "server": "node server/index.js"
+    "test:server": "node --test server/*.test.js",
+    "server": "node server/index.js",
+    "seed:self": "node scripts/seed-self.js",
+    "taskflow": "node bin/taskflow.js"
   },
-  "proxy": "http://localhost:3001",
   "version": "0.1.0"
 }

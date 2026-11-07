@@ -1,8 +1,7 @@
 ---
-completed: 2026-05-02T06:45:00Z
+completed: '2026-05-02T06:45:00.000Z'
 worker: claude-sonnet-4-6
 ---
-
 ## What Was Done
 
 Created the full data layer and app shell: API client, TaskContext provider, useTasks hook, 3-tab layout in App.js, and minimal tab CSS.

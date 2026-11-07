@@ -2,8 +2,8 @@
 id: c8e06a36-0bda-4145-89c3-d942695b36ea
 title: Comments & Activity Feed tab
 priority: medium
-created: 2026-05-02T00:00:00Z
-status: todo
+created: '2026-05-02T00:00:00.000Z'
+status: done
 depends_on:
   - 7430cb90-c026-4521-b5b7-ba085ce9c915
   - a3d5157c-a2b4-433c-b3e7-ab49cb94713e
@@ -12,8 +12,8 @@ tags:
   - react
   - frontend
   - ui
+goal: Planner UI v1 (legacy folder era)
 ---
-
 ## Objective
 
 Add comment input to task detail views and build the Activity Feed tab — a cross-task log of all comments, enabling planner↔worker communication through the UI.

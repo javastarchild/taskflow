@@ -46,3 +46,22 @@
 | `1d637a41` | Active Tasks tab | done |
 | `1a971837` | Completed Tasks tab | done |
 | `c8e06a36` | Comments & Activity Feed | done |
+
+---
+
+# Central queue (goal: "Remote central queue", 2026-11-07)
+
+> These tasks were created with the folder protocol, imported into the central
+> queue (`npm run seed:self`), executed through it with the `taskflow` CLI, and
+> exported back here. The live queue is the source of truth; run
+> `taskflow queue --project taskflow` against your server.
+
+| Phase | UUID prefix | Task | Owner | Depends on |
+|-------|-------------|------|-------|------------|
+| 1 | `05a761d9` | Central SQLite store | Claude | — |
+| 2 | `ab716066` | Authenticated remote HTTP queue, atomic claim, leases | Claude | 05a761d9 |
+| 2 | `cc6e6b99` | Legacy import/export + self seeding | Claude | 05a761d9 |
+| 3 | `cb79677d` | Worker CLI / API client | Claude | ab716066 |
+| 3 | `b4cca650` | React project/goal/task/queue UI | Codex | ab716066 |
+| 3 | `9deedf48` | Configurable API URL + token in UI | Codex | ab716066 |
+| 4 | `837f97f1` | README / deployment / security / leader-worker docs | Claude | all above |

@@ -1,5 +1,11 @@
 # Planner Agent Instructions
 
+> **Central queue available.** Taskflow now stores tasks in a central database
+> behind an authenticated HTTP API, so this folder no longer needs to be copied
+> into projects. Agents should use the `taskflow` CLI (`claim`, `heartbeat`,
+> `comment`, `complete`) — see the repository README. This folder protocol is
+> still supported via `taskflow import-planner` / `export-planner`.
+
 You are the planning agent for this project. Read this file at the start of every session.
 
 ## On Each Run
