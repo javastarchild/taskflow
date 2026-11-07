@@ -9,18 +9,18 @@
   align-items: center;
   gap: 10px;
   padding: 10px 14px;
-  background: #f5f5f5;
+  background: var(--surface-soft);
   border-radius: 6px;
   font-size: 0.9rem;
-  color: #555;
+  color: var(--muted);
 }
 
 .stats-bar .stat strong {
-  color: #111;
+  color: var(--text);
 }
 
 .stat-divider {
-  color: #bbb;
+  color: var(--muted);
 }
 
 .task-list {
@@ -30,7 +30,7 @@
 }
 
 .task-card {
-  border: 1px solid #e0e0e0;
+  border: 1px solid var(--border);
   border-radius: 6px;
   overflow: hidden;
 }
@@ -45,12 +45,12 @@
   justify-content: space-between;
   padding: 12px 16px;
   cursor: pointer;
-  background: #fafafa;
+  background: var(--surface-soft);
   gap: 12px;
 }
 
 .task-card-header:hover {
-  background: #f0f0f0;
+  background: var(--hover);
 }
 
 .task-title {
@@ -71,28 +71,28 @@
 
 .task-date {
   font-size: 0.8rem;
-  color: #888;
+  color: var(--muted);
 }
 
 .task-worker {
   font-size: 0.8rem;
-  color: #888;
+  color: var(--muted);
   font-style: italic;
 }
 
 .task-chevron {
   font-size: 0.65rem;
-  color: #aaa;
+  color: var(--muted);
 }
 
 .task-detail {
   padding: 16px;
-  border-top: 1px solid #e0e0e0;
-  background: #fff;
+  border-top: 1px solid var(--border);
+  background: var(--surface);
 }
 
 .loading {
-  color: #888;
+  color: var(--muted);
   font-size: 0.9rem;
   margin: 0;
 }
@@ -106,7 +106,7 @@
   font-size: 0.8rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #666;
+  color: var(--muted);
 }
 
 .task-body {
@@ -115,7 +115,7 @@
   white-space: pre-wrap;
   word-break: break-word;
   margin: 0;
-  color: #333;
+  color: var(--text);
 }
 
 .comment-thread {
@@ -127,12 +127,12 @@
   font-size: 0.8rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #666;
+  color: var(--muted);
 }
 
 .comment {
   padding: 8px 10px;
-  background: #f5f5f5;
+  background: var(--surface-soft);
   border-radius: 4px;
   margin-bottom: 6px;
 }
@@ -162,7 +162,7 @@
 
 .comment-time {
   font-size: 0.78rem;
-  color: #888;
+  color: var(--muted);
 }
 
 .comment-content {
@@ -178,7 +178,7 @@
 .empty-state {
   text-align: center;
   padding: 48px 16px;
-  color: #888;
+  color: var(--muted);
 }
 
 .empty-state p {
@@ -187,13 +187,13 @@
 
 .btn-secondary {
   padding: 7px 14px;
-  background: #f0f0f0;
-  color: #333;
-  border: 1px solid #ccc;
+  background: var(--hover);
+  color: var(--text);
+  border: 1px solid var(--border);
   border-radius: 4px;
   font-size: 0.9rem;
   cursor: pointer;
 }
 
-.btn-secondary:hover:not(:disabled) { background: #e0e0e0; }
+.btn-secondary:hover:not(:disabled) { background: var(--border); }
 .btn-secondary:disabled { opacity: 0.6; cursor: not-allowed; }

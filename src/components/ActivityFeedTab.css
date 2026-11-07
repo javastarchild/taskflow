@@ -12,8 +12,8 @@
 .feed-entry {
   padding: 12px 14px;
   border-radius: 6px;
-  border: 1px solid #e8e8e8;
-  background: #fff;
+  border: 1px solid var(--border);
+  background: var(--surface);
 }
 
 .feed-entry-planner {
@@ -52,7 +52,7 @@
   padding: 0;
   font-size: 0.85rem;
   font-weight: 600;
-  color: #0066cc;
+  color: var(--accent);
   cursor: pointer;
   text-decoration: underline;
   flex: 1;
@@ -63,17 +63,17 @@
   white-space: nowrap;
 }
 
-.feed-task-link:hover { color: #0044aa; }
+.feed-task-link:hover { color: var(--accent-hover); }
 
 .feed-timestamp {
   font-size: 0.78rem;
-  color: #999;
+  color: var(--muted);
   flex-shrink: 0;
 }
 
 .feed-content {
   font-size: 0.9rem;
-  color: #333;
+  color: var(--text);
   line-height: 1.5;
   display: -webkit-box;
   -webkit-line-clamp: 3;
@@ -91,7 +91,7 @@
   border: none;
   padding: 2px 0;
   font-size: 0.8rem;
-  color: #0066cc;
+  color: var(--accent);
   cursor: pointer;
   margin-top: 4px;
 }
@@ -101,7 +101,7 @@
 .empty-state {
   text-align: center;
   padding: 48px 16px;
-  color: #888;
+  color: var(--muted);
 }
 
 .empty-state p { margin: 0; }

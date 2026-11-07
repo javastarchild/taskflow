@@ -51,11 +51,13 @@ export function ProjectPanel() {
             {['active', 'achieved', 'archived'].map(status => <option key={status}>{status}</option>)}
           </select>
         </label>)}
+        <details className="goal-form"><summary>New goal</summary>
         <form className="task-form" onSubmit={e => submit(e, data => createGoal({ title: data.get('title').trim(), description: data.get('description').trim() }))}>
           <label>Goal title<input name="title" required /></label>
           <label>Goal description<textarea name="description" /></label>
           <button className="btn-secondary" disabled={busy}>Create Goal</button>
         </form>
+        </details>
       </>}
     </section>
   );

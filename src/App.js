@@ -1,4 +1,5 @@
 import './App.css';
+import { ThemeSelector } from './components/ThemeSelector';
 import { Settings } from './components/Settings';
 import { ProjectPanel } from './components/ProjectPanel';
 import { QueuePanel } from './components/QueuePanel';
@@ -46,15 +47,24 @@ function AppShell() {
 
   return (
     <div className="App">
-      <h1 className="app-title">Planner</h1>
-      <Settings />
-      <ProjectPanel />
-      {error && <p role="alert">{error}</p>}
-      {loading && <p role="status">Loading…</p>}
-      {project && <QueuePanel />}
-      <TabBar active={activeTab} onChange={setActiveTab} activityCount={totalComments} />
-      <div className="tab-content">
-        {project && <TabContent key={`${project}:${goal}`} active={activeTab} />}
+      <header className="app-header">
+        <div><p className="app-eyebrow">TASKFLOW</p><h1 className="app-title">Workspace</h1></div>
+        <div className="app-controls"><ThemeSelector /><Settings /></div>
+      </header>
+      <div className="workspace-layout">
+        <main className="planner-area" aria-label="Planner">
+          <h2 className="panel-title">Planner</h2>
+          <ProjectPanel />
+          {error && <p role="alert">{error}</p>}
+          {loading && <p role="status">Loading…</p>}
+          <TabBar active={activeTab} onChange={setActiveTab} activityCount={totalComments} />
+          <div className="tab-content">
+            {project && <TabContent key={`${project}:${goal}`} active={activeTab} />}
+          </div>
+        </main>
+        <aside className="queue-sidebar" aria-label="Queue monitor">
+          {project ? <QueuePanel /> : <section className="queue-panel"><h2>Queue status</h2><p>Select or create a project to monitor its queue.</p></section>}
+        </aside>
       </div>
     </div>
   );

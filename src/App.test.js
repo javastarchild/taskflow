@@ -67,6 +67,7 @@ test('empty projects prompt creation and select the created project', async () =
 test('creates goals, filters tasks by goal and no goal, and changes goal status', async () => {
   render(<App />);
   await screen.findByText('Launch (active)');
+  fireEvent.click(screen.getByText('New goal'));
   fireEvent.change(screen.getByLabelText('Goal title'), { target: { value: 'Ship UI' } });
   fireEvent.click(screen.getByRole('button', { name: 'Create Goal' }));
   await screen.findByText('Ship UI (active)');
